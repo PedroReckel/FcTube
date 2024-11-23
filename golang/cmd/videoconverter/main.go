@@ -1,42 +1,53 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
-	"path/filepath"
-	"regexp"
-	"sort"
-	"strconv"
+	"imersaofc/internal/converter"
+	"log/slog"
+	"os"
+
+	_ "github.com/lib/pq"
 )
 
+func connectPostgres() (*sql.DB, error) {
+	user := getEnvOrDefault("POSTGRES_USER", "user")
+	password := getEnvOrDefault("POSTGRES_PASSWORD", "password")
+	dbname := getEnvOrDefault("POSTGRES_DB", "postgres")
+	host := getEnvOrDefault("POSTGRES_HOST", "postgres")
+	sslmode := getEnvOrDefault("POSTGRES_SSLMODE", "disable")	
+
+	connStr := fmt.Sprintf("user=%s password=%s dbname=%s host=%s sslmode=%s", user, password, dbname, host, sslmode)
+	db, err := sql.Open("postgres", connStr)
+
+	if err != nil {
+		slog.Error("Failed to connect to PostgreSQL", slog.String("error", err.Error()))
+		return nil, err
+	}
+
+	err = db.Ping()
+	if err != nil {
+		slog.Error("Failed to ping PostgreSQL", slog.String("error", err.Error()))
+		return nil, err
+	}
+
+	slog.Info("Connected to PostgreSQL successfully")
+	return db, nil
+}
+
+// Pegar valores default de variaveis de ambiente
+func getEnvOrDefault(key, defaultValue string) string { // Vair ler a variavel de ambiente e se ele não existir a gnt pega um valor padrão
+	if value, exists := os.LookupEnv(key); exists {
+		return value
+	}
+	return defaultValue
+}
+
 func main() {
-	println("Hello, Wolrd!")
-}
-
-// Ordenar o caminho do arquivo somente com o nome do arquivo
-func extractNumber(fileName string) int {
-	re := regexp.MustCompile(`\d+`) // Pegar apenas digitos
-	numStr := re.FindString(filepath.Base(fileName)) // string
-
-	// Tratamento de erro
-	num, err := strconv.Atoi(numStr)
+	db, err := connectPostgres()
 	if err != nil {
-		return -1
+		panic(err)
 	}
-	return num
-}
-
-// Função de merge (criar um novo arquivo a partir dos chunks)
-func mergeChunks(inputDir, outPutFile string) error {
-	chunks, err := filepath.Glob(filepath.Join(inputDir, "*.chunk")) // Buscar todos os arquivos *.chunk e pegar o caminho completo
-
-	// Tratamento de error
-	if err != nil {
-		return fmt.Errorf("failed to find chunks: %v", err)
-	}
-
-	// Colocar regra de ordenação dos chunks
-	sort.Slice(chunks, func(i, j int) bool {
-		return extractNumber(chunks[i]) < extractNumber(chunks[j])
-	})
-
+	vc := converter.NewVideoConverter(db)
+	vc.Handle([]byte(`{"video_id": 1, "path": "/media/uploads/1"}`))
 }
