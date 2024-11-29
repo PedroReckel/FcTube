@@ -13,7 +13,7 @@ import (
 func connectPostgres() (*sql.DB, error) {
 	user := getEnvOrDefault("POSTGRES_USER", "user")
 	password := getEnvOrDefault("POSTGRES_PASSWORD", "password")
-	dbname := getEnvOrDefault("POSTGRES_DB", "postgres")
+	dbname := getEnvOrDefault("POSTGRES_DB", "converter")
 	host := getEnvOrDefault("POSTGRES_HOST", "postgres")
 	sslmode := getEnvOrDefault("POSTGRES_SSLMODE", "disable")	
 
