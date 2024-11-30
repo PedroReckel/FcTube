@@ -14,7 +14,7 @@ import (
 	"time"
 )
 
-type VideoConverter struct{
+type VideoConverter struct {
 	db *sql.DB
 }
 
