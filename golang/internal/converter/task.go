@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"imersaofc/internal/rabbitmq"
 	"log/slog"
 	"os"
 	"os/exec"
@@ -12,13 +13,16 @@ import (
 	"sort"
 	"strconv"
 	"time"
+
+	"github.com/streadway/amqp"
 )
 
 type VideoConverter struct {
 	db *sql.DB
+	rabbitClient *rabbitmq.RabbitClient 
 }
 
-func NewVideoConverter(db *sql.DB) *VideoConverter {
+func NewVideoConverter(rabbitClient *rabbitmq.RabbitClient , db *sql.DB) *VideoConverter {
 	return &VideoConverter{
 		db: db,
 	}
@@ -31,9 +35,9 @@ type VideoTask struct{
 }
 
 // Converter VideoTask para json
-func (vc *VideoConverter) Handle(msg []byte) { // Esse * é um ponteiro, qualquer valor que eu auterar aqui utilizando o vc. vai ser refletido em qualquer lugar do meu código)
+func (vc *VideoConverter) Handle(d amqp.Delivery, conversionExch, confirmationKey, confirmationQueue string) { // Esse * é um ponteiro, qualquer valor que eu auterar aqui utilizando o vc. vai ser refletido em qualquer lugar do meu código)
 	var task VideoTask  
-	err := json.Unmarshal(msg, &task) // Pegar a mensagem que vai ser o json de input e vai converter ele no formado de VideoTask
+	err := json.Unmarshal(d.Body, &task) // Pegar a mensagem que vai ser o json de input e vai converter ele no formado de VideoTask
 	if err != nil {
 		vc.logError(task, "failed to unmarshal task", err)
 		return
@@ -41,6 +45,7 @@ func (vc *VideoConverter) Handle(msg []byte) { // Esse * é um ponteiro, qualque
 
 	if IsProcessed(vc.db, task.VideoID) {
 		slog.Warn("Video already processed", slog.Int("video_id", task.VideoID))
+		d.Ack(false) // Se a mensagem já foi processada eu removo ela da fila
 		return
 	}
 
@@ -49,7 +54,11 @@ func (vc *VideoConverter) Handle(msg []byte) { // Esse * é um ponteiro, qualque
 		vc.logError(task, "failed to mark video as processed", err)
 		return
 	}
+	d.Ack(false) // Avisar que já foi processado e pode jogar a mensagem para fora da fila 
 	slog.Info("Video marked as processed", slog.Int("video_id", task.VideoID))
+
+	confirmationMessage := []byte(fmt.Sprintf(`{"video_id": %d, "path":"%s"}`, task.VideoID, task.Path))
+	err = vc.rabbitClient.PublishMessage(conversionExch, confirmationKey, confirmationQueue, confirmationMessage)
 
 	// Pegar essa task que a gente tem e mandar processar
 	err = vc.processVideo(&task)

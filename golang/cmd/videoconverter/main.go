@@ -4,10 +4,12 @@ import (
 	"database/sql"
 	"fmt"
 	"imersaofc/internal/converter"
+	"imersaofc/internal/rabbitmq"
 	"log/slog"
 	"os"
 
 	_ "github.com/lib/pq"
+	"github.com/streadway/amqp"
 )
 
 func connectPostgres() (*sql.DB, error) {
@@ -48,6 +50,33 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	vc := converter.NewVideoConverter(db)
-	vc.Handle([]byte(`{"video_id": 1, "path": "/media/uploads/1"}`))
+	rabbitMQURL := getEnvOrDefault("RABBITMQ_URL", "amqp://guest:guest@rabbitmq:5672/")
+	rabbitmqClient, err := rabbitmq.NewRabbitClient(rabbitMQURL)
+	if err != nil {
+		panic(err)
+	}
+	defer rabbitmqClient.Close()
+
+	convertionExch := getEnvOrDefault("CONVERSION_EXCHANGE", "conversion_exchange")
+	queueName := getEnvOrDefault("CONVERSION_QUEUE", "video_conversion_queue")
+	convesionKey := getEnvOrDefault("CONVERSION_KEY", "conversion")
+	confirmationKey := getEnvOrDefault("CONFIMATION_KEY", "finish_confirmation")
+	confirmationQueue := getEnvOrDefault("CONFIMATION_QUEUE", "finish_confirmation_queue")
+
+	vc := converter.NewVideoConverter(rabbitmqClient, db)
+	// vc.Handle([]byte(`{"video_id": 1, "path": "/media/uploads/1"}`))
+
+	msgs, err := rabbitmqClient.ConsumeMessages(convertionExch, convesionKey, queueName)
+	if err != nil {
+		slog.Error("failed to consume messages", slog.String("error", err.Error()))
+	}
+
+	// Fica lendo as mensagens que chegam
+	for d := range msgs {
+		// Gerando uma nova thread (go rotina)
+		go func(delivery amqp.Delivery)  {
+			vc.Handle(delivery)
+		}(d)
+	}
+
 }
