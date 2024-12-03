@@ -1,4 +1,15 @@
 services:
+
+  django:
+    build: .
+    ports:
+      - 8000:8000
+    volumes:
+      - .:/home/my-user/app
+      - external-storage:/media/uploads # Storage para ser compartilhada entre containers
+    extra_hosts:
+      - "host.docker.internal:host-gateway" # Permitir conversar com a aplicação do rabbitmq (gateway da rede do docker, aonde os containers batem para poderem fazer acessos externos)
+
   db:
     image: postgres:15.8-alpine3.20
     ports:
@@ -16,3 +27,7 @@ services:
       - PGADMIN_DEFAULT_PASSWORD=secret
     depends_on:
       - db
+
+volumes:
+  external-storage:
+    external: true
