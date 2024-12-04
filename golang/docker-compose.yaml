@@ -21,6 +21,8 @@ services:
       CONVERSION_EXCHANGE: "conversion_exchange"
       CONVERSION_QUEUE: "video_conversion_queue"
       CONVERSION_KEY: "conversion"
+      CONFIMATION_KEY: "finish-conversion"
+      CONFIMATION_QUEUE: "finish_conversion_queue"
     volumes:
       - .docker/postgres:/var/lib/postgresql/data
 

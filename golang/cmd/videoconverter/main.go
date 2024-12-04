@@ -60,8 +60,8 @@ func main() {
 	convertionExch := getEnvOrDefault("CONVERSION_EXCHANGE", "conversion_exchange")
 	queueName := getEnvOrDefault("CONVERSION_QUEUE", "video_conversion_queue")
 	convesionKey := getEnvOrDefault("CONVERSION_KEY", "conversion")
-	confirmationKey := getEnvOrDefault("CONFIMATION_KEY", "finish_confirmation")
-	confirmationQueue := getEnvOrDefault("CONFIMATION_QUEUE", "finish_confirmation_queue")
+	confirmationKey := getEnvOrDefault("CONFIMATION_KEY", "finish-conversion")
+	confirmationQueue := getEnvOrDefault("CONFIMATION_QUEUE", "video_confirmation_queue")
 
 	vc := converter.NewVideoConverter(rabbitmqClient, db)
 	// vc.Handle([]byte(`{"video_id": 1, "path": "/media/uploads/1"}`))
@@ -75,7 +75,7 @@ func main() {
 	for d := range msgs {
 		// Gerando uma nova thread (go rotina)
 		go func(delivery amqp.Delivery)  {
-			vc.Handle(delivery)
+			vc.Handle(delivery, convertionExch, confirmationKey, confirmationQueue)
 		}(d)
 	}
 

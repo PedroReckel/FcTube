@@ -104,7 +104,7 @@ class VideoService:
         video_media = video.video_media
         if video_media.status != VideoMedia.Status.PROCESS_STARTED:
             raise VideoMediaInvalidStatusException('Processing must be started to finish it.')
-        video_media.video_path = video_path.replace('/media/uploads/', '') + '/mpeg-dash/output.mpd'
+        # video_media.video_path = video_path.replace('/media/uploads/', '') + '/mpeg-dash/output.mpd'
         video_media.status = VideoMedia.Status.PROCESS_FINISHED
         video_media.save()
     

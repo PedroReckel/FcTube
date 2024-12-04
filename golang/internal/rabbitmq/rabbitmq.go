@@ -4,28 +4,31 @@ import (
 	"fmt"
 
 	"github.com/streadway/amqp"
-	"golang.org/x/text/message"
 )
 
+// RabbitClient encapsula a conexão e o canal do RabbitMQ
 type RabbitClient struct {
-	conn *amqp.Connection
+	conn    *amqp.Connection
 	channel *amqp.Channel
-	url string
+	url     string
 }
 
 // Abrindo conexão com o RabbitMQ
 func newConnection(url string) (*amqp.Connection, *amqp.Channel, error) {
+	// Conecta ao RabbitMQ
 	conn, err := amqp.Dial(url)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to connect to RabbitMQ: %v", err)
 	}
 
+	// Abre um canal na conexão
 	channel, err := conn.Channel()
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to open a channel: %v", err)
-		}
+	if err != nil {
+		_ = conn.Close() // Garante que a conexão seja fechada se o canal não abrir
+		return nil, nil, fmt.Errorf("failed to open a channel: %v", err)
+	}
 
-		return conn, channel, nil
+	return conn, channel, nil
 }
 
 // Criar um novo client para ele abrir a conexão
@@ -36,9 +39,9 @@ func NewRabbitClient(connectionURL string) (*RabbitClient, error) {
 	}
 
 	return &RabbitClient{
-		conn: conn,
+		conn:    conn,
 		channel: channel,
-		url: connectionURL,
+		url:     connectionURL,
 	}, nil
 }
 
@@ -48,13 +51,12 @@ func (client *RabbitClient) ConsumeMessages(exchange, routingKey, queueName stri
 	err := client.channel.ExchangeDeclare(
 		exchange,
 		"direct",
-		true,
-		true,
-		false,
-		false,
-		nil,
+		true,  // Durable
+		false, // Auto-delete corrigido
+		false, // Internal
+		false, // No-wait
+		nil,   // Arguments
 	)
-
 	if err != nil {
 		return nil, fmt.Errorf("failed to declare exchange: %v", err)
 	}
@@ -62,34 +64,32 @@ func (client *RabbitClient) ConsumeMessages(exchange, routingKey, queueName stri
 	// Declarar uma fila
 	queue, err := client.channel.QueueDeclare(
 		queueName,
-		true,
-		true,
-		false,
-		false,
-		nil,
+		true,  // Durable
+		false, // Auto-delete corrigido
+		false, // Exclusive
+		false, // No-wait
+		nil,   // Arguments
 	)
-
 	if err != nil {
 		return nil, fmt.Errorf("failed to declare queue: %v", err)
 	}
 
 	// Fazer o bind (toda vez que uma mensagem for enviada para a minha exchange essa mensagem vai ser roteada para determinada fila)
 	err = client.channel.QueueBind(queue.Name, routingKey, exchange, false, nil)
-
 	if err != nil {
 		return nil, fmt.Errorf("failed to bind queue: %v", err)
 	}
 
+	// Consumir mensagens
 	msgs, err := client.channel.Consume(
 		queueName,
-		"goapp",
-		false,
-		false,
-		false,
-		false,
-		nil,
+		"goapp", // Consumer Tag
+		false,   // Auto-ack
+		false,   // Exclusive
+		false,   // No-local
+		false,   // No-wait
+		nil,     // Arguments
 	)
-
 	if err != nil {
 		return nil, fmt.Errorf("failed to consume messages from queue: %v", err)
 	}
@@ -97,59 +97,45 @@ func (client *RabbitClient) ConsumeMessages(exchange, routingKey, queueName stri
 	return msgs, nil
 }
 
-func (client *RabbitClient) PublishMessage(exchange, routingKey, queueName, message []byte) error {
-	// É necessário declarar a exchange, fila e key para garantir que não tenha problema (vai ser uma fila de confirmação)
-	// A fila que vai ler vai a ser a da aplicação django a aplicação go vai publicar
-
+// Publicar mensagens na fila
+func (client *RabbitClient) PublishMessage(exchange, routingKey, queueName string, message []byte) error {
 	// Declarar uma exchange
 	err := client.channel.ExchangeDeclare(
 		exchange,
 		"direct",
-		true,
-		true,
-		false,
-		false,
-		nil,
+		true,  // Durable
+		false, // Auto-delete corrigido
+		false, // Internal
+		false, // No-wait
+		nil,   // Arguments
 	)
-
 	if err != nil {
 		return fmt.Errorf("failed to declare exchange: %v", err)
 	}
 
-	// Declarar uma fila
-	queue, err := client.channel.QueueDeclare(
-		queueName,
-		true,
-		true,
-		false,
-		false,
-		nil,
-	)
-
-	if err != nil {
-		return fmt.Errorf("failed to declare queue: %v", err)
-	}
-
-	err = client.channel.QueueBind(queue.Name, routingKey, exchange, false, nil)
-
-	if err != nil {
-		return fmt.Errorf("failed to bind queue: %v", err)
-	}
-
+	// Publicar mensagem
 	err = client.channel.Publish(
-		exchange, routingKey, false, false, amqp.Publishing{
+		exchange,   // Exchange
+		routingKey, // Routing key
+		false,      // Mandatory
+		false,      // Immediate
+		amqp.Publishing{
 			ContentType: "application/json",
-			Body: message,
+			Body:        message,
 		},
 	)
 	if err != nil {
-		return fmt.Errorf("failed to publish queue: %v", err)
+		return fmt.Errorf("failed to publish message: %v", err)
 	}
 	return nil
 }
 
 // Fechar a conexão e o canal
 func (client *RabbitClient) Close() {
-	client.channel.Close()
-	client.conn.Close()
+	if client.channel != nil {
+		_ = client.channel.Close() // Garante que erros não interrompam a execução
+	}
+	if client.conn != nil {
+		_ = client.conn.Close()
+	}
 }
