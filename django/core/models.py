@@ -11,7 +11,10 @@ def random_filename(instance, filename):
     
     # Usa o timestamp atual e o nome original para gerar o hash simples
     hash_object = hashlib.md5(f"{filename}{time.time()}".encode('utf-8'))
-    return f"{hash_object.hexdigest()}.{ext}"
+    hashed_filename = f"{hash_object.hexdigest()}.{ext}"
+
+    return os.path.join('/media/uploads', hashed_filename)
+    # return f"{hash_object.hexdigest()}.{ext}"
 
 
 # Create your models here.
