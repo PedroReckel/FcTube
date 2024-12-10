@@ -3,35 +3,33 @@ import { VideoModel } from "../models";
 import Link from "next/link";
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-export async function getVideos(search: string): Promise<VideoModel[]> {
-  await sleep(2000); // Tornar a chamada na API mais lenta
-  const url = search
-    ? `http://localhost:8000/api/videos?q=${search}`
-    : `http://localhost:8000/api/videos`;
-  
-  
-  const response = await fetch(url, {
+
+export async function getVideosRecommended(
+  videoId: number
+): Promise<VideoModel[]> {
+  await sleep(2000);
+  const response = await fetch(`http://localhost:8000/api/videos/${videoId}/recommended`, {
     cache: "no-cache",
   });
 
   return response.json();
-
 }
 
-export type VideoListProps = {
-  search: string;
+export type VideoRecommendListProps = {
+  videoId: number;
 };
 
-export async function VideosList(props: VideoListProps) {
-  const { search } = props;
-  const videos = await getVideos(search);
+export async function VideosRecommendList(props: VideoRecommendListProps) {
+  const { videoId } = props;
+  const videos = await getVideosRecommended(videoId);
   return videos.length ? (
     videos.map((video) => (
-      <Link key={video.id} href={`/${video.slug}/play`}>
+      <Link key={video.id} href={`/${video.slug}/play`} >
         <VideoCard
           title={video.title}
           thumbnail={video.thumbnail}
           views={video.views}
+          orientation="horizontal"
         />
       </Link>
     ))
