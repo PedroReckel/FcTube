@@ -7,6 +7,8 @@ import { VideoPlayer } from "@/components/VideoPlayer";
 
 import { unstable_after as after} from "next/server";
 import { VideosRecommendList } from "@/components/VideosRecommended";
+import { VideoViews } from "./VideoViews";
+import { VideoLikeCounter } from "./VideoLike";
 
 export default async function VideoPlayPage({
   params,
@@ -14,7 +16,8 @@ export default async function VideoPlayPage({
   params: { slug: string };
 }) {
   const video = await getVideo(params.slug);
-  after(async () => {
+  after(async () => { // Esse after vai ser rodado em paralelo com o carregamento da página e vai permitir executar algo após o carregamento da página
+    // Aqui no caso após ele carregar a página ele vai buscar as views do vídeo (sempre que atualizar a página ele também atualiza as views) 
     await fetch(`http://localhost:8000/api/videos/${video.id}/register-view`, {
       method: "POST",
     })
@@ -38,7 +41,7 @@ export default async function VideoPlayPage({
                   <div className="w-48 h-8 bg-secondary animate-pulse rounded mr-2"></div>
                 }
               >
-                {/* <VideoViews videoId={video.id} /> */}
+                <VideoViews videoId={video.id} />
                 <span>
                   &nbsp;há&nbsp;
                   {formatDistance(video.published_at, new Date(), {
@@ -52,7 +55,7 @@ export default async function VideoPlayPage({
                 <div className="w-24 h-8 bg-secondary animate-pulse rounded mr-2"></div>
               }
             >
-              {/* <VideoLikeCounter videoId={video.id} /> */}
+              <VideoLikeCounter videoId={video.id} />
             </Suspense>
           </div>
 
