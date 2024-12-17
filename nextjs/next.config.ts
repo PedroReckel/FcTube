@@ -1,3 +1,5 @@
+import { hostname } from "os";
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   experimental: {
@@ -7,6 +9,9 @@ const nextConfig = {
       remotePatterns: [
           {
               hostname: 'localhost'
+          },
+          {
+            hostname: 'host.docker.internal'
           }
       ]
   }

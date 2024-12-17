@@ -18,7 +18,7 @@ export default async function VideoPlayPage({
   const video = await getVideo(params.slug);
   after(async () => { // Esse after vai ser rodado em paralelo com o carregamento da página e vai permitir executar algo após o carregamento da página
     // Aqui no caso após ele carregar a página ele vai buscar as views do vídeo (sempre que atualizar a página ele também atualiza as views) 
-    await fetch(`http://localhost:8000/api/videos/${video.id}/register-view`, {
+    await fetch(`${process.env.DJANGO_API_URL}/videos/${video.id}/register-view`, {
       method: "POST",
     })
   });

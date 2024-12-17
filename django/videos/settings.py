@@ -10,6 +10,9 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.1/ref/settings/
 """
 
+import os
+import dj_database_url
+
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -76,14 +79,15 @@ WSGI_APPLICATION = 'videos.wsgi.application'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#databases
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'mydb',
-        'USER': 'postgres',
-        'PASSWORD': 'root',
-        'HOST': 'db',
-        'PORT': '5432',
-    }
+    # 'default': {
+    #     'ENGINE': 'django.db.backends.postgresql',
+    #     'NAME': 'mydb',
+    #     'USER': 'postgres',
+    #     'PASSWORD': 'root',
+    #     'HOST': 'db',
+    #     'PORT': '5432',
+    # }
+    'default': dj_database_url.config(default=os.environ.get('DATABSE_URL'))
 }
 
 
@@ -127,3 +131,10 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+RABBITMQ_URL = os.environ.get('RABBITMQ_URL')
+ASSETS_URL = os.environ.get('ASSETS_URL')
+
+ALLOWED_HOSTS = [
+    'host.docker.internal', 'localhost'
+]
