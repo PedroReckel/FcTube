@@ -1,7 +1,7 @@
 include:
   - ../postgres/docker-compose.yaml
   - ../rabbitmq/docker-compose.yaml
-  # - ../nginx/docker-compose.yaml
+  - ../nginx/docker-compose.yaml
 
 services:
 
